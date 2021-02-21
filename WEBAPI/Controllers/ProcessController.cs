@@ -14,11 +14,16 @@ namespace WEBAPI.Controllers
     {
         private readonly IExpensivePaymentGateway _expensivePaymentGateway;
         private readonly IMapper _mapper;
+        private readonly ICheapPaymentGateway _cheapPaymentGateway;
+        private readonly IPremiumPaymentService _premiumPaymentService;
 
-        public ProcessController(IExpensivePaymentGateway expensivePaymentGateway, IMapper mapper)
+        public ProcessController(IExpensivePaymentGateway expensivePaymentGateway, 
+            IMapper mapper, ICheapPaymentGateway cheapPaymentGateway, IPremiumPaymentService premiumPaymentService)
         {
             _expensivePaymentGateway = expensivePaymentGateway;
             _mapper = mapper;
+            _cheapPaymentGateway = cheapPaymentGateway;
+            _premiumPaymentService = premiumPaymentService;
         }
 
         [HttpPost]
@@ -57,7 +62,21 @@ namespace WEBAPI.Controllers
 
             var addRequest = _expensivePaymentGateway.AddRequest(requestObj);
 
-            var process = await _expensivePaymentGateway.ProcessPayment(requestObj);
+            dynamic process;
+
+            if (request.Amount <= 20)
+            {
+                process = await _cheapPaymentGateway.ProcessPayment(requestObj);
+            }
+            else if (request.Amount > 20 && request.Amount <= 500)
+            {
+                process = await _expensivePaymentGateway.ProcessPayment(requestObj);
+            }
+            else
+            {
+                process = await _premiumPaymentService.ProcessPayment(requestObj);
+            }
+            
 
             var state = new PaymentStateDto
             {
